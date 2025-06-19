@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NHQEF CLO Development Tool</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background: #f8f9fa;
+      color: #212529;
+    }
+    h1, h2 {
+      color: #007bff;
+    }
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 1rem;
+    }
+    .note {
+      font-size: 0.85rem;
+      font-style: italic;
+      margin-top: 0.2rem;
+      margin-bottom: 0.8rem;
+      color: #6c757d;
+    }
+    select, input[type="text"] {
+      margin: 0.5rem 0;
+      padding: 0.4rem;
+    }
+    .ga-line, .clo-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      margin-top: 0.5rem;
+    }
+    .ga-block, .clo-block {
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ced4da;
+      background: white;
+      border-radius: 8px;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.6rem 1.2rem;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+  <script>
+    const confirmedCLOData = [];
+
+function generateCLOBlocks() {
+      const cloContainer = document.getElementById("cloContainer");
+      cloContainer.innerHTML = "";
+      const gaLines = document.querySelectorAll("#gaPreviewList p");
+
+      const gaOptions = Array.from(gaLines).map((line, idx) => {
+        return { index: idx + 1, text: line.textContent };
+      });
+
+      const selector = document.createElement("select");
+      selector.id = "gaSelectDropdown";
+      selector.innerHTML = `<option value="">-- Select a GA to write a CLO --</option>` +
+        gaOptions.map(ga => `<option value="${ga.index}">${ga.text}</option>`).join("");
+
+      
+const selectorLabel = document.createElement("label");
+      selectorLabel.textContent = "Select a GA to write a CLO:";
+      cloContainer.appendChild(selectorLabel);
+      cloContainer.appendChild(selector); 
+
+      const gaBlocksWrapper = document.createElement("div");
+      gaBlocksWrapper.id = "gaBlocksWrapper";
+cloContainer.appendChild(gaBlocksWrapper);
+
+      selector.addEventListener("change", () => {
+        // Do not remove the previous block to keep history visible
+const existing = document.getElementById("cloBlockGA");
+if (existing) existing.removeAttribute("id");
+
+        const selected = selector.value;
+        if (!selected) return;
+
+        const gaText = gaOptions.find(g => g.index == selected).text;
+        const block = document.createElement("div");
+        block.className = "clo-block";
+        block.style.borderTop = "3px solid #007bff";
+        block.style.marginTop = "2rem";
+        block.id = `cloBlockGA_${selected}`;
+        block.setAttribute("data-ga-id", selected);
+
+        const header = document.createElement("button");
+        header.className = "collapsible";
+        header.textContent = gaText;
+        header.style.width = "100%";
+        header.style.textAlign = "left";
+        header.style.fontWeight = "bold";
+        header.style.backgroundColor = "#f1f1f1";
+        header.style.border = "none";
+        header.style.padding = "0.5rem";
+        header.onclick = function() {
+          this.classList.toggle("active");
+          const content = this.nextElementSibling;
+          content.style.display = content.style.display === "none" ? "block" : "none";
+        };
+        const gaTitle = document.createElement("h3");
+        const toStart = gaText.indexOf("To");
+        const toPart = toStart !== -1 ? gaText.slice(toStart) : gaText;
+        gaTitle.textContent = toPart;
+        gaTitle.style.marginBottom = "0.5rem";
+        gaTitle.style.color = "#343a40";
+        block.appendChild(gaTitle);
+
+        const collapsibleContent = document.createElement("div");
+        collapsibleContent.style.display = "block";
+        block.appendChild(header);
+
+        const cloList = document.createElement("div");
+        cloList.className = "clo-list";
+        collapsibleContent.appendChild(cloList);
+
+        const addCLOInput = () => {
+          const cloLine = document.createElement("div");
+          cloLine.className = "clo-line";
+          cloLine.innerHTML = `
+            <select>
+              <option>Students will be able to</option>
+              <option>Students will show willingness to</option>
+              <option>Students will engage to</option>
+              <option>Students will appreciate to</option>
+            </select>
+            <input type="text" placeholder="complete the CLO here" style="flex: 2;" />
+          `;
+          cloList.appendChild(cloLine);
+        };
+
+        const addBtn = document.createElement("button");
+        addBtn.textContent = "+ Add another CLO for this GA";
+        addBtn.onclick = addCLOInput;
+
+        const confirmBtn = document.createElement("button");
+        confirmBtn.textContent = "Confirm this CLO for this GA";
+        confirmBtn.onclick = () => {
+          const table = document.createElement("table");
+          table.style.marginTop = "1rem";
+          table.innerHTML = `<tr><th>GA</th><th>CLO</th></tr>`;
+
+          const confirmedCLOs = [];
+cloList.querySelectorAll(".clo-line").forEach(clo => {
+  const sel = clo.querySelector("select").value;
+  const txt = clo.querySelector("input").value.trim();
+  if (!txt) {
+    alert("Please complete all CLO fields before confirming.");
+    return;
+  }
+  confirmedCLOs.push(`${sel} ${txt}`);
+});
+
+          confirmedCLOs.forEach((clo, idx) => {
+  const row = document.createElement("tr");
+  row.innerHTML = `<td>${gaText}</td><td>${idx + 1}. ${clo}</td>`;
+  table.appendChild(row);
+  confirmedCLOData.push({ ga: gaText, clo });
+});
+
+          const summaryTitle = document.createElement("p");
+          summaryTitle.textContent = `For GA ${selected}, you developed the following CLO(s):`;
+          collapsibleContent.appendChild(summaryTitle);
+          collapsibleContent.appendChild(table);
+
+          const label = document.createElement("p");
+          label.textContent = "Does the above CLO(s) also map with any other GA?";
+          label.style.color = "#007bff";
+          label.style.fontWeight = "bold";
+          collapsibleContent.appendChild(label);
+
+          const others = gaOptions.filter(g => g.index != selected);
+          others.forEach(g => {
+            const checkbox = document.createElement("div");
+            checkbox.innerHTML = `
+              <label>
+                <input type="checkbox" name="mapGA" value="${g.index}" /> ${g.text}
+              </label>`;
+            collapsibleContent.appendChild(checkbox);
+          });
+
+          const proceedBtn = document.createElement("button");
+          proceedBtn.style.marginRight = "10px";
+          proceedBtn.textContent = "Proceed to another GA";
+          proceedBtn.onclick = () => {
+            selector.selectedIndex = 0;
+selector.scrollIntoView({ behavior: "smooth" });
+          };
+          collapsibleContent.appendChild(proceedBtn);
+          if (!addShown) {
+            collapsibleContent.appendChild(addBtn);
+            addShown = true;
+          }
+
+          // addBtn moved after mapping checkboxes
+        };
+
+        addCLOInput();
+        // addBtn moved after mapping checkboxes and appears only after confirmation
+        collapsibleContent.appendChild(confirmBtn);
+        let addShown = false;
+        const wrapper = document.getElementById("gaBlocksWrapper");
+        if (selector.nextSibling && selector.nextSibling.id === "gaBlocksWrapper") {
+          block.appendChild(collapsibleContent);
+        wrapper.appendChild(block);
+        block.scrollIntoView({ behavior: "smooth" });
+        } else {
+          cloContainer.appendChild(block);
+        }
+      });
+    }
+  </script>
+</head>
+<body>
+  <h1>Worksheet/Quick Guide to Develop Graduate Attributes (GAs) and Course Learning Outcomes (CLOs)</h1>
+
+  <section>
+    <label for="programName">Program Name (e.g., BSc Mathematics):</label>
+    <input type="text" id="programName" placeholder="Enter program name" style="width: 100%;" />
+  </section>
+
+  <section>
+    <h2>Step 1: Develop around 8 Graduate Attributes</h2>
+    <div id="gaPreviewList" style="margin-top: 1rem; font-weight: bold; color: red;"></div>
+    <div id="gaContainer"></div>
+    <div id="confirmedGAList"></div>
+    <div id="nextGAOptions" style="display: none;">
+      <p style="display: inline-block; margin-right: 1rem;">Do you want to add more GAs?</p>
+      <button id="yesAddMore">Yes</button>
+      <button id="noAddMore">No</button>
+    </div>
+    <button id="downloadGAsPDFButton" style="display: none; visibility: hidden;">📄 Download GAs as PDF</button>
+    <button id="continueToCLOsButton" style="display: none; visibility: hidden;">I will download later with CLOs</button>
+    <button id="downloadGAsCLOsPDFButton" style="display: none; visibility: hidden;">📄 Download GAs and CLOs as PDF</button>
+  </section>
+
+  <section id="cloSection" style="display:none;">
+    <h2>Step 2: Write CLOs for Each GA</h2>
+    <label for="courseNameStep2">Course/Subject Name (e.g., Calculus):</label>
+    <input type="text" id="courseNameStep2" placeholder="Enter course name" style="width: 100%;" />
+    <div id="cloContainer"></div>
+  <div id="cloReviewTableWrapper" style="display: none; margin-top: 2rem;"></div>
+
+<script>
+    function confirmGA(button) {
+      const line = button.parentElement;
+      const selects = line.querySelectorAll("select");
+      const input = line.querySelector("input");
+
+      const ga = selects[0].value;
+      const subGA = selects[1].value;
+      const verb = selects[2].value;
+      const qualifier = selects[3].value;
+      const action = input.value.trim();
+
+      if (!action) {
+        alert("Please complete the GA description before confirming.");
+        return;
+      }
+
+      const fullGA = `${ga} [${subGA}]: To ${verb} ${qualifier} to ${action}`;
+      const previewList = document.getElementById("gaPreviewList");
+      const gaCount = document.querySelectorAll('#gaPreviewList p').length + 1;
+      const p = document.createElement("p");
+      p.textContent = `GA ${gaCount}: ${fullGA}`;
+      previewList.appendChild(p);
+
+      const editButton = document.createElement("button");
+      editButton.textContent = "Edit GA";
+      editButton.style.marginLeft = "1rem";
+      editButton.onclick = () => {
+        const gaInputs = line.cloneNode(true);
+        document.getElementById("gaContainer").appendChild(gaInputs);
+        p.remove();
+        editButton.remove();
+      };
+      previewList.appendChild(editButton);
+
+      line.remove();
+      document.getElementById("nextGAOptions").style.display = "block";
+    }
+
+    function addGALine() {
+      const container = document.getElementById("gaContainer");
+      const div = document.createElement("div");
+      div.className = "ga-line";
+      div.innerHTML = `
+        <select>
+          <option>--Select GA--</option>
+          <option>Knowledge</option>
+          <option>Skills</option>
+          <option>Application</option>
+          <option>Generic Skills</option>
+          <option>Employability</option>
+          <option>Ethics/Values</option>
+          <option>Student Contribution</option>
+          <option>Subject Evolution</option>
+        </select>
+        <select>
+          <option>--Select Sub-GA--</option>
+          <option>KWLG-CNCPT</option>
+          <option>KWLG-PRCDR</option>
+          <option>KWLG-LINK</option>
+          <option>SKILL-TASK</option>
+          <option>SKILL-ANALYZE</option>
+          <option>SKILL-EVALUATE</option>
+          <option>APPL-KNOW</option>
+          <option>APPL-SKILL</option>
+          <option>GEN-COMM-WRITE</option>
+          <option>GEN-CRITICAL</option>
+          <option>GEN-OWN</option>
+          <option>EMP-READ</option>
+          <option>EMP-GROUP</option>
+          <option>EMP-OWN</option>
+          <option>ETHIC-PRACTICE-CONST</option>
+          <option>ETHIC-PRACTICE-HUMAN</option>
+          <option>ETHIC-PRACTICE-ETHIC</option>
+          <option>Ask Questions</option>
+          <option>Collaborate</option>
+          <option>Historical Reflection</option>
+          <option>Cultural Context</option>
+        </select>
+        <span>To</span>
+        <select>
+          <option>Demonstrate</option>
+          <option>Develop</option>
+        </select>
+        <select>
+          <option>ability</option>
+          <option>willingness</option>
+          <option>appreciation</option>
+          <option>engagement</option>
+        </select>
+        <span>to</span>
+        <input type="text" placeholder="complete the GA here" />
+        <button onclick="confirmGA(this)">Confirm GA</button>
+      `;
+      container.appendChild(div);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      addGALine();
+
+      document.getElementById("yesAddMore").addEventListener("click", () => {
+        document.getElementById("nextGAOptions").style.display = "none";
+        addGALine();
+      });
+
+      document.getElementById("noAddMore").addEventListener("click", () => {
+        document.getElementById("nextGAOptions").style.display = "none";
+        document.getElementById("downloadGAsPDFButton").style.display = "inline-block";
+        document.getElementById("downloadGAsPDFButton").style.visibility = "visible";
+        document.getElementById("continueToCLOsButton").style.display = "inline-block";
+        document.getElementById("continueToCLOsButton").style.visibility = "visible";
+        document.getElementById("continueToCLOsButton").addEventListener("click", () => {
+          document.getElementById("cloSection").style.display = "block";
+          generateCLOBlocks();
+          showCLOReviewTable();
+        });
+      });
+    });
+  </script>
+<button onclick="downloadCLOSummaryPDF()" style="margin-top: 2rem;">📄 Download CLO Summary PDF</button>
+
+<script>
+function toggleAllBlocks(expand) {
+  document.querySelectorAll('.collapsible').forEach(button => {
+    const content = button.nextElementSibling;
+    content.style.display = expand ? 'block' : 'none';
+  });
+}
+
+function showCLOReviewTable() {
+  const reviewWrapper = document.getElementById("cloReviewTableWrapper");
+  reviewWrapper.innerHTML = "<h3>Summary of All CLO–GA Mappings</h3>";
+  const table = document.createElement("table");
+  table.style.width = "100%";
+  table.style.borderCollapse = "collapse";
+  table.innerHTML = `<tr><th style='border:1px solid #ccc;padding:8px;'>CLO</th><th style='border:1px solid #ccc;padding:8px;'>Mapped GA</th></tr>`;
+
+  const seen = new Set();
+  confirmedCLOData.forEach(({ clo, ga }) => {
+    const key = `${clo} | ${ga}`;
+    if (!seen.has(key)) {
+      const row = document.createElement("tr");
+      row.innerHTML = `<td style='border:1px solid #ccc;padding:8px;'>${clo}</td><td style='border:1px solid #ccc;padding:8px;'>${ga}</td>`;
+      table.appendChild(row);
+      seen.add(key);
+    }
+  });
+
+  reviewWrapper.appendChild(table);
+  document.getElementById("cloSummaryToggleWrapper").style.display = "block";
+  reviewWrapper.style.display = "block";
+}
+
+function downloadCLOSummaryPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  // Header
+  doc.setFontSize(16);
+  doc.setFont(undefined, 'bold');
+  doc.text("Graduate Attributes and Course Learning Outcomes", 105, 20, { align: "center" });
+  doc.setFontSize(12);
+  doc.setFont(undefined, 'italic');
+  doc.text("(inspired from NHQEF and NEP-2020)", 105, 28, { align: "center" });
+
+  doc.setFont(undefined, 'normal');
+  doc.setFontSize(11);
+  doc.text("Prepared by Praveen Chhikara (based on emerging interpretation)", 14, 38);
+  doc.setFont(undefined, 'italic');
+  doc.text("Program: BSc", 14, 46);
+  doc.text("Course: Calculus", 14, 52);
+
+  let y = 60;
+  doc.setFont(undefined, 'bold');
+  doc.setFillColor(41, 128, 185);
+  doc.setTextColor(255);
+  doc.rect(14, y, 182, 10, 'F');
+  doc.text("Graduate Attribute (GA)", 18, y + 7);
+  doc.text("Sub-Attribute", 90, y + 7);
+  doc.text("Course Learning Outcome (CLO)", 140, y + 7);
+
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(0);
+  y += 14;
+  const seen = new Set();
+  confirmedCLOData.forEach(entry => {
+    const key = `${entry.clo} | ${entry.ga}`;
+    if (!seen.has(key)) {
+      const ga = entry.ga.split(':')[1]?.trim().split('[')[0]?.trim() || '';
+      const sub = entry.ga.match(/\[(.*?)\]/)?.[1] || '';
+      doc.text(ga, 18, y);
+      doc.text(sub, 90, y);
+      doc.text(entry.clo, 140, y);
+      y += 10;
+      seen.add(key);
+    }
+  });
+
+  y += 10;
+  doc.setFont(undefined, 'italic');
+  doc.text("Best wishes,", 14, y);
+  y += 6;
+  doc.setFont(undefined, 'bold');
+  doc.text("Praveen Chhikara", 14, y);
+
+  y += 10;
+  doc.setFont(undefined, 'normal');
+  doc.text("Notes:", 14, y);
+  y += 6;
+  doc.setFont("courier", "normal");
+  doc.text("This guide is inspired from the NHQEF framework and NEP 2020 policy documents", 14, y);
+  y += 6;
+  doc.text("with additional attributes added to support holistic education goals.", 14, y);
+  y += 6;
+  doc.text("If you have any questions, feel free to reach out to Praveen.", 14, y);
+
+  doc.save("CLO_Summary.pdf");
+}
+</script>
+</body>
+</html>
